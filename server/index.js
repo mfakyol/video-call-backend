@@ -2,10 +2,10 @@ import cors from "cors";
 import express from "express";
 import bodyParser from "body-parser";
 import AppRoutes from "./routes/index";
-import RoomModel from './models/Room.model'
+import RoomModel from "./models/Room.model";
 
 //import mongo
-import {connectDb} from "./config";
+import { connectDb } from "./config";
 connectDb();
 
 //Init server
@@ -20,7 +20,6 @@ app.use(cors());
 
 //Export routes outside of file
 AppRoutes(app);
-
 
 // routes
 app.get("/", async (req, res) => {
@@ -47,10 +46,24 @@ io.on("connection", (socket) => {
   console.log("user connected.");
   socket.emit("connected to socket.");
 
-  socket.on("join_room", (payload) => {
+  socket.on("join_room", async (payload) => {
+    const room = await RoomModel.findOne({
+      id: payload.roomId,
+      password: payload.password,
+    })
+      .then((room) => room)
+      .catch((e) => {
+        //
+      });
+    //
+    if (!room) return socket.emit("no_room");
+    if (!room.isJoinable || !room.isOnline) return socket.emit("room_closed");
+    if(users[payload.roomId]){
+
+      if(users[payload.roomId].length >= room.roomSize) return socket.emit("room_full")
+    }
 
     if (users[payload.roomId]) {
-      // get max roomsize and compare number of users in room if equals return room_full emit to user
       socket.join(payload.roomId);
       users[payload.roomId].push({
         socketId: socket.id,
@@ -79,9 +92,6 @@ io.on("connection", (socket) => {
         },
       ];
       rooms[socket.id] = payload.roomId;
-      //socket.emit("no_room");
-      //console.log("no room");
-      //disconnect socket
     }
   });
 
